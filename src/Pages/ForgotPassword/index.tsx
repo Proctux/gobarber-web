@@ -1,10 +1,11 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { FiMail, FiArrowLeft } from 'react-icons/fi';
 import * as Yup from 'yup';
 import { Form } from '@unform/web';
 import { FormHandles } from '@unform/core';
 import { Link } from 'react-router-dom';
 import logoImg from '../../assets/logoImg.svg';
+import api from '../../services/api';
 
 import { useToast } from '../../hooks/toast';
 import getValidationErrors from '../../utils/getValidationErrors';
@@ -18,6 +19,7 @@ interface ForgotPasswordFormData {
 }
 
 const ForgotPassword: React.FC = () => {
+  const [loading, setLoading] = useState(false);
   const formRef = useRef<FormHandles>(null);
 
   const { addToast } = useToast();
@@ -26,6 +28,8 @@ const ForgotPassword: React.FC = () => {
   const handleSubmit = useCallback(
     async (data: ForgotPasswordFormData) => {
       try {
+        setLoading(true);
+
         const schema = Yup.object().shape({
           email: Yup.string()
             .email(
@@ -40,9 +44,16 @@ const ForgotPassword: React.FC = () => {
           abortEarly: false,
         });
 
-        // recuperação de senha
+        await api.post('/password/forgot', {
+          email: data.email,
+        });
 
-        // history.push("/")
+        addToast({
+          title: 'E-mail de recuperação enviando',
+          type: 'success',
+          description:
+            'Enviamos um e-mail para confirmar a recuperação de senha. Cheque sua caixa de entrada.',
+        });
       } catch (err) {
         if (err instanceof Yup.ValidationError) {
           const errors = getValidationErrors(err);
@@ -56,6 +67,8 @@ const ForgotPassword: React.FC = () => {
           description:
             'Ocorreu um erro na recuperação de senha. Tente novamente mais tarde.',
         });
+      } finally {
+        setLoading(false);
       }
     },
     [addToast],
@@ -72,7 +85,9 @@ const ForgotPassword: React.FC = () => {
 
             <Input icon={FiMail} name="email" placeholder="E-mail" />
 
-            <Button type="submit">Recuperar</Button>
+            <Button loading={loading} type="submit">
+              Recuperar
+            </Button>
           </Form>
 
           <Link to="/">
