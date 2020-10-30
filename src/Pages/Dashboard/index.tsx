@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import DayPicker, { DayModifiers } from 'react-day-picker';
 import 'react-day-picker/lib/style.css';
-import { isToday, format } from 'date-fns';
+import { isToday, format, parseISO } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
 import { FiPower, FiClock } from 'react-icons/fi';
 import { useAuth } from '../../hooks/auth';
@@ -30,6 +30,7 @@ interface MonthAvailabilityItem {
 interface Appointment {
   id: string;
   date: string;
+  hourFormatted: string;
   user: {
     name: string;
     avatar_url: string;
@@ -69,6 +70,27 @@ const Dashboard: React.FC = () => {
       });
   }, [currentMonth, user.id]);
 
+  useEffect(() => {
+    api
+      .get<Appointment[]>('/appointments/me', {
+        params: {
+          year: selectedDate.getFullYear(),
+          month: selectedDate.getMonth() + 1,
+          day: selectedDate.getDate(),
+        },
+      })
+      .then(response => {
+        const appointmentsFormatted = response.data.map(appointment => {
+          return {
+            ...appointment,
+            hourFormatted: format(parseISO(appointment.date), 'HH:mm'),
+          };
+        });
+
+        setAppointments(appointmentsFormatted);
+      });
+  }, [selectedDate]);
+
   const disabledDays = useMemo(() => {
     const dates = monthAvailability
       .filter(monthDay => monthDay.available === false)
@@ -90,20 +112,17 @@ const Dashboard: React.FC = () => {
     return format(selectedDate, 'cccc', { locale: ptBR });
   }, [selectedDate]);
 
-  useEffect(() => {
-    api
-      .get('/appointments/me', {
-        params: {
-          year: selectedDate.getFullYear(),
-          month: selectedDate.getMonth() + 1,
-          day: selectedDate.getDate(),
-        },
-      })
-      .then(response => {
-        setAppointments(response.data);
-        console.log(response.data);
-      });
-  }, [selectedDate]);
+  const morningAppointments = useMemo(() => {
+    return appointments.filter(appointment => {
+      return parseISO(appointment.date).getHours() < 12;
+    });
+  }, [appointments]);
+
+  const afternoonAppointments = useMemo(() => {
+    return appointments.filter(appointment => {
+      return parseISO(appointment.date).getHours() >= 12;
+    });
+  }, [appointments]);
 
   return (
     <Container>
@@ -153,73 +172,45 @@ const Dashboard: React.FC = () => {
           <Section>
             <strong>Manhã</strong>
 
-            <Appointment>
-              <span>
-                <FiClock />
-                09:00h
-              </span>
+            {morningAppointments.map(appointment => (
+              <Appointment key={appointment.id}>
+                <span>
+                  <FiClock />
+                  {appointment.hourFormatted}
+                </span>
 
-              <div>
-                <img
-                  src="https://scontent.ffln1-1.fna.fbcdn.net/v/t1.0-9/20429956_1363449150443110_712752422006271480_n.jpg?_nc_cat=105&ccb=2&_nc_sid=09cbfe&_nc_eui2=AeHhQ3HvnagzSpCnvTbqZBP_50BEW4EZgArnQERbgRmACna1AO3leQmsWmFmuK6xhsoWgHoxHS0dtd9nrCAdf8_A&_nc_ohc=p-3jwS9PrIAAX8BDEg6&_nc_ht=scontent.ffln1-1.fna&oh=9126c6d4ed93f96c6e8b4d8119e69b44&oe=5FB650FD"
-                  alt="Luiz"
-                />
+                <div>
+                  <img
+                    src={appointment.user.avatar_url}
+                    alt={appointment.user.name}
+                  />
 
-                <strong>Luiz</strong>
-              </div>
-            </Appointment>
-
-            <Appointment>
-              <span>
-                <FiClock />
-                09:00h
-              </span>
-
-              <div>
-                <img
-                  src="https://scontent.ffln1-1.fna.fbcdn.net/v/t1.0-9/20429956_1363449150443110_712752422006271480_n.jpg?_nc_cat=105&ccb=2&_nc_sid=09cbfe&_nc_eui2=AeHhQ3HvnagzSpCnvTbqZBP_50BEW4EZgArnQERbgRmACna1AO3leQmsWmFmuK6xhsoWgHoxHS0dtd9nrCAdf8_A&_nc_ohc=p-3jwS9PrIAAX8BDEg6&_nc_ht=scontent.ffln1-1.fna&oh=9126c6d4ed93f96c6e8b4d8119e69b44&oe=5FB650FD"
-                  alt="Luiz"
-                />
-
-                <strong>Luiz</strong>
-              </div>
-            </Appointment>
+                  <strong>{appointment.user.name}</strong>
+                </div>
+              </Appointment>
+            ))}
           </Section>
 
           <Section>
             <strong>Tarde</strong>
 
-            <Appointment>
-              <span>
-                <FiClock />
-                09:00h
-              </span>
+            {afternoonAppointments.map(appointment => (
+              <Appointment key={appointment.id}>
+                <span>
+                  <FiClock />
+                  {appointment.hourFormatted}
+                </span>
 
-              <div>
-                <img
-                  src="https://scontent.ffln1-1.fna.fbcdn.net/v/t1.0-9/20429956_1363449150443110_712752422006271480_n.jpg?_nc_cat=105&ccb=2&_nc_sid=09cbfe&_nc_eui2=AeHhQ3HvnagzSpCnvTbqZBP_50BEW4EZgArnQERbgRmACna1AO3leQmsWmFmuK6xhsoWgHoxHS0dtd9nrCAdf8_A&_nc_ohc=p-3jwS9PrIAAX8BDEg6&_nc_ht=scontent.ffln1-1.fna&oh=9126c6d4ed93f96c6e8b4d8119e69b44&oe=5FB650FD"
-                  alt="Luiz"
-                />
+                <div>
+                  <img
+                    src={appointment.user.avatar_url}
+                    alt={appointment.user.name}
+                  />
 
-                <strong>Luiz</strong>
-              </div>
-            </Appointment>
-
-            <Appointment>
-              <span>
-                <FiClock />
-                09:00h
-              </span>
-
-              <div>
-                <img
-                  src="https://scontent.ffln1-1.fna.fbcdn.net/v/t1.0-9/20429956_1363449150443110_712752422006271480_n.jpg?_nc_cat=105&ccb=2&_nc_sid=09cbfe&_nc_eui2=AeHhQ3HvnagzSpCnvTbqZBP_50BEW4EZgArnQERbgRmACna1AO3leQmsWmFmuK6xhsoWgHoxHS0dtd9nrCAdf8_A&_nc_ohc=p-3jwS9PrIAAX8BDEg6&_nc_ht=scontent.ffln1-1.fna&oh=9126c6d4ed93f96c6e8b4d8119e69b44&oe=5FB650FD"
-                  alt="Luiz"
-                />
-
-                <strong>Luiz</strong>
-              </div>
-            </Appointment>
+                  <strong>{appointment.user.name}</strong>
+                </div>
+              </Appointment>
+            ))}
           </Section>
         </Schedule>
         <Calendar>
